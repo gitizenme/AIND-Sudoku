@@ -69,22 +69,30 @@ def naked_twins(values):
     :return: The resulting sudoku in dictionary form.
     """
 
-    for unit in unitlist:  # for each unit (row/column/square/diagonal)
-        unit_list = [values[element] for element in unit]
-        twins = dict(zip(unit, unit_list))
-        inverse_twins = {}
-        for key, value in twins.items():
-            inverse_twins.setdefault(value, []).append(key)
-        inverse_map = {key: value for key, value in inverse_twins.items() if len(value) == 2 and len(key) == 2}
+    for unit in unitlist:
+        first_twin = None
+        second_twin = None
+        for box in unit:
+            if values and len(values[box]) == 2:
+                if not first_twin:
+                    first_twin = box  # found first twin
+                elif not second_twin and not first_twin == box and values[first_twin] == values[box]:
+                    second_twin = box  # found second twin
+                    break
+        if first_twin and second_twin:
+            if first_twin[0] == second_twin[0]:
+                twin_marker_index = 0
+            elif first_twin[1] == second_twin[1]:
+                twin_marker_index = 1
+            else:
+                continue
 
-        candidate_boxes = [key for key in twins.keys() if len(twins[key]) > 1]
-
-        for twin_value, twin_box in inverse_map.items():
-            for unsolved_box in candidate_boxes:
-                if unsolved_box not in twin_box:
-                    for digit in twin_value:
-                        new_value = values[unsolved_box].replace(digit, '')
-                        assign_value(values, unsolved_box, new_value)
+            for box in unit:
+                if box == first_twin or box == second_twin or values[box] == values[first_twin]:
+                    continue
+                for digit in values[first_twin]:
+                    new_value = values[box].replace(digit, '')
+                    assign_value(values, box, new_value)
     return values
 
 
