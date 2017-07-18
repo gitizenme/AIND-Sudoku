@@ -1,3 +1,5 @@
+import itertools
+
 assignments = []
 
 
@@ -67,31 +69,22 @@ def naked_twins(values):
     :return: The resulting sudoku in dictionary form.
     """
 
-    for unit in unitlist[0:18]:
-        first_twin = None
-        second_twin = None
-        for box in unit:
-            if values and len(values[box]) == 2:
-                if not first_twin:
-                    first_twin = box  # found first twin
-                elif not second_twin and not first_twin == box and values[first_twin] == values[box]:
-                    second_twin = box  # found second twin
-                    break
-        if first_twin and second_twin:
-            if first_twin[0] == second_twin[0]:
-                twin_marker_index = 0
-            elif first_twin[1] == second_twin[1]:
-                twin_marker_index = 1
-            else:
-                continue
+    for unit in unitlist:  # for each unit (row/column/square/diagonal)
+        unit_list = [values[element] for element in unit]
+        twins = dict(zip(unit, unit_list))
+        inverse_twins = {}
+        for key, value in twins.items():
+            inverse_twins.setdefault(value, []).append(key)
+        inverse_map = {key: value for key, value in inverse_twins.items() if len(value) == 2 and len(key) == 2}
 
-            for peer in peers[box]:
-                if peer == first_twin or peer == second_twin or values[peer] == values[first_twin]:
-                    continue
-                if peer[twin_marker_index] == first_twin[twin_marker_index]:
-                    values[peer] = values[peer].replace(values[first_twin][0], '')
-                    values[peer] = values[peer].replace(values[first_twin][1], '')
+        candidate_boxes = [key for key in twins.keys() if len(twins[key]) > 1]
 
+        for twin_value, twin_box in inverse_map.items():
+            for unsolved_box in candidate_boxes:
+                if unsolved_box not in twin_box:
+                    for digit in twin_value:
+                        new_value = values[unsolved_box].replace(digit, '')
+                        assign_value(values, unsolved_box, new_value)
     return values
 
 
@@ -146,7 +139,8 @@ def eliminate(values):
     for box in solved_values:
         digit = values[box]
         for peer in peers[box]:
-            values[peer] = values[peer].replace(digit, '')
+            new_value = values[peer].replace(digit, '')
+            assign_value(values, peer, new_value)
     return values
 
 
@@ -160,7 +154,9 @@ def only_choice(values):
         for digit in '123456789':
             dplaces = [box for box in unit if digit in values[box]]
             if len(dplaces) == 1:
-                values[dplaces[0]] = digit
+                new_value = digit
+                box = dplaces[0]
+                assign_value(values, box, new_value)
     return values
 
 
@@ -178,7 +174,7 @@ def reduce_puzzle(values):
         solved_values_before = len([box for box in values.keys() if len(values[box]) == 1])
         values = eliminate(values)
         values = only_choice(values)
-#        values = naked_twins(values)
+        values = naked_twins(values)
         solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
         stalled = solved_values_before == solved_values_after
         if len([box for box in values.keys() if len(values[box]) == 0]):
@@ -199,7 +195,7 @@ def search(values):
     # Now use recurrence to solve each one of the resulting sudoku, and
     for value in values[s]:
         new_sudoku = values.copy()
-        new_sudoku[s] = value
+        assign_value(new_sudoku, s, value)
         attempt = search(new_sudoku)
         if attempt:
             return attempt
