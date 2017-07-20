@@ -1,7 +1,6 @@
-import itertools
+from collections import defaultdict
 
 assignments = []
-
 
 
 def assign_value(values, box, value):
@@ -19,48 +18,6 @@ def assign_value(values, box, value):
         assignments.append(values.copy())
     return values
 
-# BEFORE
-#
-#   1   237   4  | 2357  9   257 |  27   6    8
-#   9    5    6  |  27   1    8  |  27   3    4
-#   23  237   8  |  4    37   6  |  9    5    1
-# ---------------+---------------+---------------
-#   5    1   2379| 237  347  279 |  34   8    6
-#   8    37  379 |  6   347  579 | 345   1    2
-#   6    4    23 | 1235  8   125 |  35   9    7
-# ---------------+---------------+---------------
-#   7    8    1  |  9    2    3  |  6    4    5
-#   4    9    5  |  17   6    17 |  8    2    3
-#   23   6    23 |  8    5    4  |  1    7    9
-#
-# AFTER
-#
-#   1   237   4  | 2357  9   257 |  27   6    8
-#   9    5    6  |  27   1    8  |  27   3    4
-#   23  237   8  |  4    37   6  |  9    5    1
-# ---------------+---------------+---------------
-#   5    1   2379| 237  347  279 |  34   8    6
-#   8    37  379 |  6   347  579 | 345   1    2
-#   6    4    23 | 1235  8   125 |  35   9    7
-# ---------------+---------------+---------------
-#   7    8    1  |  9    2    3  |  6    4    5
-#   4    9    5  |  17   6    17 |  8    2    3
-#   23   6    23 |  8    5    4  |  1    7    9
-#
-# POSSIBLE SOLUTION
-#
-#   1   237   4  | 2357  9   257 |  27   6    8
-#   9    5    6  |  27   1    8  |  27   3    4
-#   23  237   8  |  4    37   6  |  9    5    1
-# ---------------+---------------+---------------
-#   5    1    79 | 237  347  279 |  34   8    6
-#   8    37   79 |  6   347  579 | 345   1    2
-#   6    4    23 | 1235  8   125 |  35   9    7
-# ---------------+---------------+---------------
-#   7    8    1  |  9    2    3  |  6    4    5
-#   4    9    5  |  17   6    17 |  8    2    3
-#   23   6    23 |  8    5    4  |  1    7    9
-
 
 def naked_twins(values):
     """
@@ -69,30 +26,37 @@ def naked_twins(values):
     :return: The resulting sudoku in dictionary form.
     """
 
-    for unit in unitlist:
-        first_twin = None
-        second_twin = None
-        for box in unit:
-            if values and len(values[box]) == 2:
-                if not first_twin:
-                    first_twin = box  # found first twin
-                elif not second_twin and not first_twin == box and values[first_twin] == values[box]:
-                    second_twin = box  # found second twin
-                    break
-        if first_twin and second_twin:
-            if first_twin[0] == second_twin[0]:
-                twin_marker_index = 0
-            elif first_twin[1] == second_twin[1]:
-                twin_marker_index = 1
-            else:
-                continue
+    # Find all instances of naked twins
 
+    # loop over units checking if there is are any naked twins
+    for unit in unitlist:
+        # get all boxes with a length of two
+        inv_values = defaultdict(list)
+        for box in unit:
+            if len(values[box]) == 2:
+                inv_values[values[box]].append(box)
+
+        # now get all the naked pair twins ie exists twice in pairs
+        naked_twin_list = []
+        for key, value in inv_values.items():
+            if len(value) == 2:
+                naked_twin_list = value
+
+        # iterate through the naked_twins removing the values from the non naked twin boxes
+        for twin in naked_twin_list:
+            # loop over the boxes in the unit and remove the pair from them
+            # we could use peers as instead but would still need the check to
+            # ensure we aren't impacting the other naked twin
             for box in unit:
-                if box == first_twin or box == second_twin or values[box] == values[first_twin]:
-                    continue
-                for digit in values[first_twin]:
-                    new_value = values[box].replace(digit, '')
-                    assign_value(values, box, new_value)
+                # test to ensure we don't eliminate the values from either naked-twin
+                if box not in naked_twin_list:
+                    # Eliminate the naked twins as possibilities for their peers
+                    # the sorted is required for passing the test assertions as the box values
+                    # are expected to be in numerical order.
+                    for digit in values[twin]:
+                        new_value = values[box].replace(digit, '')
+                        assign_value(values, box, new_value)
+
     return values
 
 
@@ -220,6 +184,7 @@ def solve(grid):
     """
     return search(grid_values(grid))
 
+
 rows = 'ABCDEFGHI'
 cols = '123456789'
 
@@ -228,7 +193,7 @@ boxes = cross(rows, cols)
 row_units = [cross(r, cols) for r in rows]
 column_units = [cross(rows, c) for c in cols]
 square_units = [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')]
-diag_units = [[y+x for y,x in zip(rows, cols)], [y+x for y,x in zip(rows, cols[::-1])]]
+diag_units = [[y + x for y, x in zip(rows, cols)], [y + x for y, x in zip(rows, cols[::-1])]]
 unitlist = row_units + column_units + square_units + diag_units
 units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
 peers = dict((s, set(sum(units[s], [])) - set([s])) for s in boxes)
